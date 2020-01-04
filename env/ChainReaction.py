@@ -1,7 +1,7 @@
 from texttable import Texttable
-
+from configs.defaultConfigs import config
 class Cell(object):
-    def __init__(self, row, col, totalRows = 9, totalCols = 6):
+    def __init__(self, row, col, totalRows = 5, totalCols = 5):
         self.isEmpty = True
         self.playerIdx = -1
         self.numOrbs = 0
@@ -33,9 +33,8 @@ class Cell(object):
         else:
             return str(self.playerIdx)+":"+str(self.numOrbs)
 
-
 class Game(object):
-    def __init__(self, totalRows = 9, totalCols = 6, numPlayers = 2):
+    def __init__(self, totalRows = 5, totalCols = 5, numPlayers = 2):
         self.totalRows = totalRows
         self.totalCols = totalCols
         self.numPlayers = numPlayers
@@ -44,6 +43,8 @@ class Game(object):
         self.dj = [0, -1, 0, 1]
         self.curPlayer = 0
         self.totalMoves = 0
+        self.validMoves = []
+        self.validMovesForMove = -1
 
     def makeMove(self, row, col):
         self._putOrb(self.curPlayer, row, col)
@@ -78,3 +79,30 @@ class Game(object):
         print("||||||||||||||||||||||||||||||||||")
         print()
         print()
+
+    def getReward(self):
+        cnt = 0
+        for i in range(self.totalRows):
+            for j in range(self.totalCols):
+                curCell = self.grid[i][j]
+                if curCell.isEmpty:
+                    return (0, False)
+                cnt += curCell.numOrbs if curCell.playerIdx==self.curPlayer else 0
+
+        if(cnt==0 and self.totalMoves>self.curPlayer):
+            return (-1, True)
+        else:
+            return (0, False)
+
+    def getValidMoves(self):
+        if(self.totalMoves != self.validMovesForMove):
+            self.validMoves = []
+            for i in range(self.totalRows):
+                for j in range(self.totalCols):
+                    if(self.grid[i][j].isEmpty or self.grid[i][j].playerIdx==self.curPlayer):
+                        self.validMoves.append((i, j))
+        return self.validMoves
+
+
+def getNewGame():
+    return Game(config.totalRows, config.totalCols, config.numPlayers)
