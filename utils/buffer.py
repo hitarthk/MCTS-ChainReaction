@@ -5,7 +5,7 @@ class Buffer(object):
         self.totalRows = totalRows
         self.totalCols = totalCols
         self.numPlayers = numPlayers
-        self.states = np.empty((0, numPlayers, totalRows, totalCols), dtype=float)
+        self.states = np.empty((0, totalRows, totalCols, numPlayers), dtype=float)
         self.actions = np.empty((0, 2), dtype=int)
         self.playerIdx = np.empty((0,), dtype=int)
         self.intuitionProbs = np.empty((0, totalRows, totalCols), dtype=float)
@@ -31,7 +31,7 @@ def transform(game: Game):
     :param game: game state to be transformed
     :return: one hot image for all players where game.curPlayer is treated as the first player
     """
-    state = np.zeros((game.totalRows, game.totalCols, game.numPlayers))
+    state = np.zeros((game.numPlayers, game.totalRows, game.totalCols))
     offset = game.curPlayer
     for i in range(game.totalRows):
         for j in range(game.totalCols):
