@@ -1,4 +1,5 @@
 from texttable import Texttable
+import copy
 from configs.defaultConfigs import config
 class Cell(object):
     def __init__(self, row, col, totalRows = 5, totalCols = 5):
@@ -47,6 +48,8 @@ class Game(object):
         self.validMovesForMove = -1
 
     def makeMove(self, row, col):
+        if(not(self.grid[row][col].isEmpty) and self.grid[row][col].playerIdx != self.curPlayer):
+            raise PermissionError(f'Invalid move. curPlayer: {self.curPlayer} | occupied by: {self.grid[row][col].playerIdx}')
         self._putOrb(self.curPlayer, row, col)
         self.totalMoves += 1
         self.curPlayer = self.totalMoves % self.numPlayers
@@ -102,6 +105,14 @@ class Game(object):
                     if(self.grid[i][j].isEmpty or self.grid[i][j].playerIdx==self.curPlayer):
                         self.validMoves.append((i, j))
         return self.validMoves
+
+    def getNextState(self, move = None, row = -1, col = -1):
+        assert move!=None or (row>=0 and col>=0)
+        if(move is None):
+            move = (row, col)
+        newGame = copy.deepcopy(self)
+        newGame.makeMove(move[0], move[1])
+        return newGame
 
 
 def getNewGame():

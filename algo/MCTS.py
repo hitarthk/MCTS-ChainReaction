@@ -5,6 +5,7 @@ from utils.buffer import transform, Buffer
 from configs.defaultConfigs import config
 from models.ResnetFeatures import IntuitionPolicy
 
+#Use this class to represent any generic action. Not using this now to speed up implementation
 class Action(object):
     def __init__(self, playerIdx: int, row: int, col: int):
         self.playerIdx = playerIdx
@@ -20,7 +21,6 @@ class Action(object):
     def __ne__(self, other):
         return not(self==other)
 
-
 class TreeNode(object):
     def __init__(self, game: Game):
         self.edges = {}
@@ -31,9 +31,9 @@ class TreeNode(object):
         self.analysisProbs = None
 
 class TreeEdge(object):
-    def __init__(self, nextNode: TreeNode, playerIdx: int, row: int, col: int, p: float, pi: float):
+    def __init__(self, nextNode: TreeNode, row: int, col: int, p: float, pi: float):
         self.nextNode = nextNode
-        self.action = Action(playerIdx, row, col)
+        self.action = (row, col)
         self.n = 0 # visit count
         self.w = 0 # total action value
         self.q = 0 # average action value
@@ -46,11 +46,25 @@ class SearchTree(object):
         self.root = root
         self.intuitionPolicy = intuitionPolicy
 
+    def _flattenMove(self, move):
+        return move[0]*self.root.game.totalCols + move[1]
+
+    def _getFlattenedInvalidMovesMask(self, validMoves):
+        mask = np.zeros(shape=(self.root.game.totalRows, self.root.game.totalCols), dtype = int)
+        validMoves = tuple(zip(*validMoves))
+        mask[validMoves] = 1
+        mask = 1 - mask
+        return mask.flatten()
+
+    def sanitizeActionProbs(self, actionProbs, validMoves):
+        invalidMovesMask = self._getFlattenedInvalidMovesMask(validMoves)
+        actionProbs[invalidMovesMask] = 0.
+        totalProbs = np.sum(actionProbs, axis = 1)
+        actionProbs /= totalProbs
+        return actionProbs
 
     #sets the selectedAction, analysisProbs and intuitionProbs in the root node. returns nothing
     def searchMove(self):
-        intuitionProbs = self.root.intuitionProbs
-
         pass
 
     def select(self, curNode: TreeNode):
@@ -58,14 +72,32 @@ class SearchTree(object):
 
         :param curNode:
         """
+        intuitionProbs = curNode.intuitionProbs
+        validMoves = curNode.game.getValidMoves()
+
+        #if curNode is a leaf node then call expand on it
+        if(len(curNode.edges)==0):
+            return self.expand(curNode)
+
+        for move, edge in curNode.edges:
+            pass
+
         pass
 
     def expand(self, curNode: TreeNode):
         policyInput = transform(curNode.game)
         policyInput = np.expand_dims(policyInput, axis=0)
-        intuitionProbs = self.intuitionPolicy(policyInput)
-        pass
+        (intuitionProbs, intuitionValue) = self.intuitionPolicy(policyInput)
+        intuitionProbs = intuitionProbs.numpy()
+        validMoves = curNode.game.getValidMoves()
+        intuitionProbs = self.sanitizeActionProbs(intuitionProbs, validMoves)
 
+        for move in validMoves:
+            nextState = curNode.game.getNextState(move)
+            nextNode = TreeNode(nextState)
+            curNode.edges[move] = TreeEdge(nextNode, move[0], move[1], intuitionProbs[self._flattenMove(move)], 0.)
+
+        return intuitionValue.numpy()
 
     def next(self):
         """
@@ -102,5 +134,3 @@ class ExperienceCollector(object):
                 multiplier *= -1
 
             self.buffer.addData(searchTree.gameTrace)
-
-
