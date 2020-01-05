@@ -2,15 +2,15 @@ import tensorflow as tf
 from tensorflow.keras import *
 
 class ResnetBlock(tf.keras.Model):
-    def __init__(self, filters, conv_size, name, **kwargs):
+    def __init__(self, filters, conv_size, l2Weight, name, **kwargs):
         super(ResnetBlock, self).__init__(name, **kwargs)
         self.filters = filters
         self.conv_size = conv_size
 
-        self.conv2a = tf.keras.layers.Conv2D(filters, conv_size, padding='same')
+        self.conv2a = tf.keras.layers.Conv2D(filters, conv_size, padding='same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.bn2a = tf.keras.layers.BatchNormalization()
 
-        self.conv2b = tf.keras.layers.Conv2D(filters, conv_size, padding='same')
+        self.conv2b = tf.keras.layers.Conv2D(filters, conv_size, padding='same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.bn2b = tf.keras.layers.BatchNormalization()
 
     def call(self, input_tensor, training=False):
@@ -26,33 +26,33 @@ class ResnetBlock(tf.keras.Model):
 
 
 class IntuitionPolicy(tf.keras.Model):
-    def __init__(self, totalRows, totalCols, numPlayers, numResnetBlocks = 10, filters = 64):
+    def __init__(self, totalRows, totalCols, numPlayers, l2Weight = 0.0001, numResnetBlocks = 10, filters = 64):
         super(IntuitionPolicy, self).__init__()
         self.totalRows = totalRows
         self.totalCols = totalCols
         self.numPlayers = numPlayers
         self.numResnetBlocks = numResnetBlocks
 
-        self.conv = tf.keras.layers.Conv2D(filters, (3, 3), padding ='same')
+        self.conv = tf.keras.layers.Conv2D(filters, (3, 3), padding ='same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.bn = tf.keras.layers.BatchNormalization()
 
         self.resnetBlocks = []
 
         for i in range(numResnetBlocks):
-            self.resnetBlocks.append(ResnetBlock(filters, 3, 'residual_block_'+str(i)))
+            self.resnetBlocks.append(ResnetBlock(filters, 3, l2Weight, 'residual_block_'+str(i)))
 
-        self.convPolicy = tf.keras.layers.Conv2D(2, (1, 1), padding = 'same')
+        self.convPolicy = tf.keras.layers.Conv2D(2, (1, 1), padding = 'same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.bnPolicy = tf.keras.layers.BatchNormalization()
-        self.fcPolicy = tf.keras.layers.Dense(totalRows * totalCols)
+        self.fcPolicy = tf.keras.layers.Dense(totalRows * totalCols, kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.policyFlatten = tf.keras.layers.Flatten()
 
-        self.convValue = tf.keras.layers.Conv2D(1, (1, 1), padding = 'same')
-        self.bnValue = tf.keras.layers.Conv2D(1, (1, 1))
+        self.convValue = tf.keras.layers.Conv2D(1, (1, 1), padding = 'same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
+        self.bnValue = tf.keras.layers.BatchNormalization()
 
         self.valueFlatten = tf.keras.layers.Flatten()
 
-        self.fcValue1 = tf.keras.layers.Dense(128)
-        self.fcValue2 = tf.keras.layers.Dense(1)
+        self.fcValue1 = tf.keras.layers.Dense(128, kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
+        self.fcValue2 = tf.keras.layers.Dense(1, kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
 
     def call(self, input, training = False):
         x = self.conv(input)
