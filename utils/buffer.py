@@ -1,4 +1,3 @@
-import numpy as np
 from algo.MCTS import *
 class Buffer(object):
     def __init__(self, totalRows = 5, totalCols = 5, numPlayers = 2):
@@ -8,8 +7,8 @@ class Buffer(object):
         self.states = np.empty((0, totalRows, totalCols, numPlayers), dtype=float)
         self.actions = np.empty((0, 2), dtype=int)
         self.playerIdx = np.empty((0,), dtype=int)
-        self.intuitionProbs = np.empty((0, totalRows, totalCols), dtype=float)
-        self.analysisProbs = np.empty((0, totalRows, totalCols), dtype=float)
+        self.intuitionProbs = np.empty((0, totalRows * totalCols), dtype=float)
+        self.analysisProbs = np.empty((0, totalRows * totalCols), dtype=float)
         self.rewards = np.empty((0), dtype=float)
 
     def addData(self, gameTrace: list(TreeNode)):
@@ -23,7 +22,6 @@ class Buffer(object):
             self.intuitionProbs = np.append(self.intuitionProbs, np.expand_dims(treeNode.intuitionProbs, axis = 0), axis = 0)
             self.analysisProbs = np.append(self.analysisProbs, np.expand_dims(treeNode.analysisProbs, axis = 0), axis = 0)
             self.rewards = np.append(self.rewards, treeNode.outcome)
-
 
 def transform(game: Game):
     """
