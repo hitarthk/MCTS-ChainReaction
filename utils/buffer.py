@@ -1,4 +1,5 @@
-from algo.MCTS import *
+from algo.MCTS import TreeNode
+import numpy as np
 class Buffer(object):
     def __init__(self, totalRows = 5, totalCols = 5, numPlayers = 2):
         self.totalRows = totalRows
@@ -11,7 +12,7 @@ class Buffer(object):
         self.analysisProbs = np.empty((0, totalRows * totalCols), dtype=float)
         self.rewards = np.empty((0), dtype=float)
 
-    def addData(self, gameTrace: list(TreeNode)):
+    def addData(self, gameTrace: list):
         for i in range(len(gameTrace)):
             treeNode = gameTrace[i]
             state = self.transform(treeNode.game)
@@ -22,18 +23,3 @@ class Buffer(object):
             self.intuitionProbs = np.append(self.intuitionProbs, np.expand_dims(treeNode.intuitionProbs, axis = 0), axis = 0)
             self.analysisProbs = np.append(self.analysisProbs, np.expand_dims(treeNode.analysisProbs, axis = 0), axis = 0)
             self.rewards = np.append(self.rewards, treeNode.outcome)
-
-def transform(game: Game):
-    """
-
-    :param game: game state to be transformed
-    :return: one hot image for all players where game.curPlayer is treated as the first player
-    """
-    state = np.zeros((game.numPlayers, game.totalRows, game.totalCols))
-    offset = game.curPlayer
-    for i in range(game.totalRows):
-        for j in range(game.totalCols):
-            if(not(game.grid[i][j].isEmpty)):
-                state[i][j][(game.grid[i][j].playerIdx + offset) % game.numPlayers] = game.grid[i][j].numOrbs
-
-    return state

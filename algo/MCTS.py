@@ -1,7 +1,6 @@
 import numpy as np
 import gc
 from env.ChainReaction import Cell, Game, getNewGame
-from utils.buffer import transform, Buffer
 from configs.defaultConfigs import config
 from models.ResnetFeatures import IntuitionPolicy
 
@@ -47,7 +46,7 @@ class TreeEdge(object):
 
 class SearchTree(object):
     def __init__(self, root: TreeNode, intuitionPolicy: IntuitionPolicy):
-        self.gameTrace = list(TreeNode)
+        self.gameTrace = list()
         self.root = root
         self.intuitionPolicy = intuitionPolicy
         self.cUB = config.cUB
@@ -60,17 +59,16 @@ class SearchTree(object):
     def _unflattenMove(self, flattenedMove):
         return (flattenedMove/self.root.game.totalCols, flattenedMove%self.root.game.totalCols)
 
-    def _getFlattenedInvalidMovesMask(self, validMoves):
-        mask = np.zeros(shape=(self.root.game.totalRows, self.root.game.totalCols), dtype = int)
+    def _getFlattenedValidMovesMask(self, validMoves):
+        mask = np.zeros(shape=(self.root.game.totalRows, self.root.game.totalCols), dtype = bool)
         validMoves = tuple(zip(*validMoves))
-        mask[validMoves] = 1
-        mask = 1 - mask
+        mask[validMoves] = True
         return mask.flatten()
 
     def sanitizeActionProbs(self, actionProbs, validMoves):
-        invalidMovesMask = self._getFlattenedInvalidMovesMask(validMoves)
-        actionProbs[invalidMovesMask] = 0.
-        totalProbs = np.sum(actionProbs, axis = 1)
+        validMovesMask = self._getFlattenedValidMovesMask(validMoves)
+        actionProbs = actionProbs * validMovesMask
+        totalProbs = np.sum(actionProbs)
         actionProbs /= totalProbs
         return actionProbs
 
@@ -119,7 +117,7 @@ class SearchTree(object):
 
         # multiply -1 because every select method returns the state evaluation for the node itself.
         # The current node is adversary of its child. Hence less for child is more for parent (how ironic :P)
-        estimatedValue = -1 * self.select(curNode.edges[bestMove].nextnode)
+        estimatedValue = -1 * self.select(curNode.edges[bestMove].nextNode)
         curNode.edges[bestMove].addObservation(estimatedValue)
         return estimatedValue
 
@@ -130,6 +128,7 @@ class SearchTree(object):
         policyInput = np.expand_dims(policyInput, axis=0)
         (intuitionProbs, intuitionValue) = self.intuitionPolicy(policyInput)
         intuitionProbs = intuitionProbs.numpy()
+        intuitionProbs = np.squeeze(intuitionProbs)
         validMoves = curNode.game.getValidMoves()
         intuitionProbs = self.sanitizeActionProbs(intuitionProbs, validMoves)
         curNode.intuitionProbs = intuitionProbs
@@ -154,17 +153,20 @@ class SearchTree(object):
         gc.collect()
         return self.root.game.getReward()
 
+from utils.buffer import *
+from utils.misc import transform
+
 class ExperienceCollector(object):
     def __init__(self):
         self.buffer = Buffer(config.totalRows, config.totalCols, config.numPlayers)
 
-    def collectExperience(self, numGames):
+    def collectExperience(self, numGames: int, intuitionPolicy: IntuitionPolicy):
         """
         Call to collect experience. Right now only experience collection with 2 players is supported. Do not call this with numPlayers>2
         :param numGames: number of self-play games before policy evaluation and improvement stage
         """
         for iter in range(numGames):
-            searchTree = SearchTree(TreeNode(getNewGame()))
+            searchTree = SearchTree(TreeNode(getNewGame()), intuitionPolicy)
             rewardTuple = (0, False)
             while(rewardTuple[1] == False):
                 rewardTuple = searchTree.next()
@@ -176,3 +178,8 @@ class ExperienceCollector(object):
                 multiplier *= -1
 
             self.buffer.addData(searchTree.gameTrace)
+
+if __name__=='__main__':
+    exp = ExperienceCollector()
+    exp.collectExperience(2, IntuitionPolicy(config.totalRows, config.totalCols, config.numPlayers,
+                                             10, 64))
