@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import gc
 from env.ChainReaction import Cell, Game, getNewGame
 from configs.defaultConfigs import config
@@ -57,12 +58,12 @@ class SearchTree(object):
         return move[0]*self.root.game.totalCols + move[1]
 
     def _unflattenMove(self, flattenedMove):
-        return (flattenedMove/self.root.game.totalCols, flattenedMove%self.root.game.totalCols)
+        return (flattenedMove//self.root.game.totalCols, flattenedMove%self.root.game.totalCols)
 
     def _getFlattenedValidMovesMask(self, validMoves):
-        mask = np.zeros(shape=(self.root.game.totalRows, self.root.game.totalCols), dtype = bool)
+        mask = np.zeros(shape=(self.root.game.totalRows, self.root.game.totalCols), dtype = float)
         validMoves = tuple(zip(*validMoves))
-        mask[validMoves] = True
+        mask[validMoves] = 1.0
         return mask.flatten()
 
     def sanitizeActionProbs(self, actionProbs, validMoves):
@@ -78,14 +79,14 @@ class SearchTree(object):
             self.select(self.root)
 
         analysisProbs = np.zeros(shape=(self.root.game.totalRows * self.root.game.totalCols), dtype=float)
-        for move, edge in self.root.edges:
+        for move, edge in self.root.edges.items():
             analysisProbs[self._flattenMove(move)] = edge.n**(1/self.temperature)
 
         totalProb = analysisProbs.sum()
         analysisProbs /= totalProb
 
         self.root.analysisProbs = analysisProbs
-        sampledMove = np.random.choice(self.root.game.totalRows*self.root.game.totalCols, 1, analysisProbs)
+        sampledMove = np.random.choice(self.root.game.totalRows*self.root.game.totalCols, 1, p = analysisProbs)[0]
         self.root.selectedAction = self._unflattenMove(sampledMove)
 
 
@@ -126,7 +127,7 @@ class SearchTree(object):
             return -1
         policyInput = transform(curNode.game)
         policyInput = np.expand_dims(policyInput, axis=0)
-        (intuitionProbs, intuitionValue) = self.intuitionPolicy(policyInput)
+        (intuitionProbs, intuitionValue, _) = self.intuitionPolicy(policyInput)
         intuitionProbs = intuitionProbs.numpy()
         intuitionProbs = np.squeeze(intuitionProbs)
         validMoves = curNode.game.getValidMoves()
@@ -145,7 +146,11 @@ class SearchTree(object):
         Moves the actual game ahead by 1 step. A move is searched by mcts and stored in the current root
         :return: (reward, isTerminal): a tuple indicating the reward and the fact if the state is terminal
         """
+        self.root.game.printGrid()
+        t1 = time.time()
         self.searchMove()
+        t2 = time.time()
+        print(f'Played move: {self.root.selectedAction}. Time taken: {t2-t1}')
         self.gameTrace.append(self.root)
         newRoot = self.root.edges[self.root.selectedAction].nextNode
         self.root.edges = {}

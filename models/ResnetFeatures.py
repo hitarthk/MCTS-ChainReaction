@@ -26,7 +26,7 @@ class ResnetBlock(tf.keras.Model):
 
 
 class IntuitionPolicy(tf.keras.Model):
-    def __init__(self, totalRows, totalCols, numPlayers, l2Weight = 0.0001, numResnetBlocks = 10, filters = 64):
+    def __init__(self, totalRows, totalCols, numPlayers, l2Weight = 0.0001, numResnetBlocks = 20, filters = 64):
         super(IntuitionPolicy, self).__init__()
         self.totalRows = totalRows
         self.totalCols = totalCols
@@ -39,7 +39,7 @@ class IntuitionPolicy(tf.keras.Model):
         self.resnetBlocks = []
 
         for i in range(numResnetBlocks):
-            self.resnetBlocks.append(ResnetBlock(filters, 3, l2Weight, 'residual_block_'+str(i)))
+            self.resnetBlocks.append(ResnetBlock(filters, 3, l2Weight, 'residual_block_'+str(i+1)))
 
         self.convPolicy = tf.keras.layers.Conv2D(2, (1, 1), padding = 'same', kernel_regularizer = tf.keras.regularizers.l2(l2Weight))
         self.bnPolicy = tf.keras.layers.BatchNormalization()
@@ -76,17 +76,19 @@ class IntuitionPolicy(tf.keras.Model):
         valueFeatures = tf.nn.relu(valueFeatures)
         valueFeatures = self.fcValue2(valueFeatures)
         valueFeatures = tf.squeeze(valueFeatures)
-        valueFeatures = tf.nn.tanh(valueFeatures)
+        values = tf.nn.tanh(valueFeatures)
 
-        return tf.tuple([actionProbs, valueFeatures])
+        return tf.tuple([actionProbs, values, actionLogitProbs])
 
 if __name__=='__main__':
-    intuitionPolicy = IntuitionPolicy(3, 3, 2, 5, 2)
-    x = tf.convert_to_tensor
-    input_tensor = tf.constant([[[[1, 0], [0, 1], [0, 0]], [[0, 0], [1, 0], [0, 1]], [[2, 0], [0, 2], [2, 0]]], [[[1, 0], [0, 1], [0, 0]], [[0, 0], [1, 0], [0, 1]], [[2, 0], [0, 2], [2, 0]]]], dtype = tf.float32)
-    out = intuitionPolicy(input_tensor)
+    intuitionPolicy = IntuitionPolicy(5, 5, 2)
+    intuitionPolicy.build(input_shape = (None, 5, 5, 2))
     print(intuitionPolicy.summary())
-    print(f'out: {out}')
+    x = tf.convert_to_tensor
+    # input_tensor = tf.constant([[[[1, 0], [0, 1], [0, 0]], [[0, 0], [1, 0], [0, 1]], [[2, 0], [0, 2], [2, 0]]], [[[1, 0], [0, 1], [0, 0]], [[0, 0], [1, 0], [0, 1]], [[2, 0], [0, 2], [2, 0]]]], dtype = tf.float32)
+    # out = intuitionPolicy(input_tensor)
+    #
+    # print(f'out: {out}')
 
     logits = tf.constant([[-1, 1], [-2, 2]], dtype = tf.float32)
     probs = tf.nn.softmax(logits)

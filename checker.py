@@ -1,5 +1,6 @@
 from env.ChainReaction import Cell, Game
 import numpy as np
+import sys
 env = Game(3,3)
 env.makeMove(0, 0)
 nextEnv = env.getNextState(move = (1, 1))
@@ -14,3 +15,5 @@ idx2 = tuple(zip(*idx))
 print(idx2)
 mask[idx2] = 1
 print(mask)
+
+print(sys.getrecursionlimit())
